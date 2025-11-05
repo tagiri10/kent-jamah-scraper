@@ -1,4 +1,3 @@
-// server.js
 import express from 'express';
 import cors from 'cors';
 import puppeteer from 'puppeteer';
@@ -9,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Mosques with URLs and addresses
+// Mosques
 const MOSQUES = [
   {
     id: 'chatham-hill',
@@ -31,7 +30,7 @@ const MOSQUES = [
   }
 ];
 
-// Site-specific scraping logic
+// Scraper function
 async function scrapeMosque(mosque) {
   try {
     const browser = await puppeteer.launch({
@@ -39,13 +38,11 @@ async function scrapeMosque(mosque) {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       executablePath: puppeteer.executablePath()
     });
-
     const page = await browser.newPage();
     await page.goto(mosque.url, { waitUntil: 'networkidle2' });
 
     let result = { jamaah: {}, jummah: [] };
 
-    // Chatham Hill Mosque
     if (mosque.id === 'chatham-hill') {
       result = await page.evaluate(() => {
         const jamaah = {};
@@ -63,7 +60,6 @@ async function scrapeMosque(mosque) {
       });
     }
 
-    // Masjidul Abraar
     if (mosque.id === 'masjidul-abraar') {
       result = await page.evaluate(() => {
         const jamaah = {};
@@ -71,8 +67,8 @@ async function scrapeMosque(mosque) {
         document.querySelectorAll('ul li').forEach(li => {
           const text = li.innerText;
           if (text.toLowerCase().includes('jumah') || text.toLowerCase().includes('jummah')) {
-            const timeMatch = text.match(/\d{1,2}:\d{2}/g);
-            if (timeMatch) timeMatch.forEach(t => jummah.push(t));
+            const times = text.match(/\d{1,2}:\d{2}/g);
+            if (times) times.forEach(t => jummah.push(t));
           } else {
             const parts = text.split(':');
             if (parts.length === 2) jamaah[parts[0].trim()] = parts[1].trim();
@@ -82,7 +78,6 @@ async function scrapeMosque(mosque) {
       });
     }
 
-    // KMWA
     if (mosque.id === 'kmwa') {
       result = await page.evaluate(() => {
         const jamaah = {};
@@ -106,6 +101,7 @@ async function scrapeMosque(mosque) {
 
     await browser.close();
     return result;
+
   } catch (err) {
     console.error('Error scraping', mosque.name, err);
     return { jamaah: {}, jummah: [] };
@@ -119,4 +115,25 @@ app.get('/api/kent-mosques', async (req, res) => {
     const results = [];
     for (const mosque of MOSQUES) {
       const data = await scrapeMosque(mosque);
-      results.pus
+      results.push({
+        id: mosque.id,
+        name: mosque.name,
+        url: mosque.url,
+        address: mosque.address,
+        jamaah: data.jamaah,
+        jummah: data.jummah
+      });
+    }
+    res.json({ date, data: results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch mosque times' });
+  }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('<h3>Kent Jamaah Scraper</h3><p>Use /api/kent-mosques?date=YYYY-MM-DD</p>');
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
