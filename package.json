@@ -1,7 +1,7 @@
 {
   "name": "kent-jamah-scraper",
-  "version": "1.1.0",
-  "description": "Kent mosques jamaah and jummah times scraper API",
+  "version": "1.0.0",
+  "description": "Scraper API for Kent mosques Jamah times",
   "main": "server.js",
   "type": "module",
   "scripts": {
