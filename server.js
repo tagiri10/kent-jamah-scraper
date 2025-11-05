@@ -23,19 +23,20 @@ const app = express();
 app.use(cors());
 
 const MOSQUES = [
-  { id: 'kmwa', name: 'Kent Muslim Welfare Association', url: 'https://kmwa.org.uk/' },
-  { id: 'chatham-hill', name: 'Chatham Hill Mosque & Kent Islamic Centre', url: 'https://www.chathamhillmosque.co.uk/' },
-  { id: 'gravesend-central', name: 'Gravesend Central Mosque', url: 'https://www.gravesendcentralmosque.com/' },
-  { id: 'masjidul-abraar', name: 'Masjidul Abraar', url: 'https://www.masjidulabraar.org/' },
-  { id: 'sittingbourne', name: 'Sittingbourne Islamic Cultural Centre', url: 'https://masjidbox.com/prayer-times/sittingbourne-islamic-cultural-centre' },
-  { id: 'maidstone', name: 'Maidstone Mosque', url: 'https://maidstonemosque.com/' },
-  { id: 'canterbury', name: 'Canterbury Mosque', url: 'https://canterburymosque.co.uk/' },
-  { id: 'ashford', name: 'Ashford Mosque', url: 'https://ashfordmosque.org/' },
-  { id: 'tonbridge', name: 'Tonbridge Masjid', url: 'https://tonbridgemasjid.org/' },
-  { id: 'masjid-abubakr', name: 'Masjid Abu Bakr', url: 'https://masjidabubakr.co.uk/' },
-  { id: 'secc-sidcup', name: 'SECC Sidcup', url: 'http://www.seccsidcup.org.uk/prayer-times/' },
-  { id: 'dmic', name: 'DMIC', url: 'https://dmic.co.uk/Prayer-Times/Monthly-Prayer-Timetable-November-2025.pdf' }
+  { id: 'kmwa', name: 'Kent Muslim Welfare Association', url: 'https://kmwa.org.uk/', address: '99-101 Sturry Rd, Canterbury, CT2 7DE' },
+  { id: 'chatham-hill', name: 'Chatham Hill Mosque & Kent Islamic Centre', url: 'https://www.chathamhillmosque.co.uk/', address: '7-9 High St, Chatham, ME4 4EE' },
+  { id: 'gravesend-central', name: 'Gravesend Central Mosque', url: 'https://www.gravesendcentralmosque.com/', address: '31-33 Coldharbour Rd, Gravesend, DA11 0DA' },
+  { id: 'masjidul-abraar', name: 'Masjidul Abraar', url: 'https://www.masjidulabraar.org/', address: '41 Bradfield Rd, Gillingham, ME7 4BL' },
+  { id: 'sittingbourne', name: 'Sittingbourne Islamic Cultural Centre', url: 'https://masjidbox.com/prayer-times/sittingbourne-islamic-cultural-centre', address: '9 St. Michaels Rd, Sittingbourne, ME10 4LP' },
+  { id: 'maidstone', name: 'Maidstone Mosque', url: 'https://maidstonemosque.com/', address: '48-50 Fant Lane, Maidstone, ME16 8RA' },
+  { id: 'canterbury', name: 'Canterbury Mosque', url: 'https://canterburymosque.co.uk/', address: '108 Sturry Rd, Canterbury, CT2 7DE' },
+  { id: 'ashford', name: 'Ashford Mosque', url: 'https://ashfordmosque.org/', address: '50-52 Beaver Rd, Ashford, TN23 1PH' },
+  { id: 'tonbridge', name: 'Tonbridge Masjid', url: 'https://tonbridgemasjid.org/', address: '37 High St, Tonbridge, TN9 1DX' },
+  { id: 'masjid-abubakr', name: 'Masjid Abu Bakr', url: 'https://masjidabubakr.co.uk/', address: '3 St. Peter’s St, Dartford, DA1 1QA' },
+  { id: 'secc-sidcup', name: 'SECC Sidcup', url: 'http://www.seccsidcup.org.uk/prayer-times/', address: '22 Burnt Oak Ln, Sidcup, DA15 9AG' },
+  { id: 'dmic', name: 'DMIC', url: 'https://dmic.co.uk/Prayer-Times/Monthly-Prayer-Timetable-November-2025.pdf', address: 'DMIC, Dartford, Kent, UK' }
 ];
+
 
 // helper to extract times like 05:00, 12:30, etc
 function extractTimesFromText(text) {
@@ -129,5 +130,6 @@ app.get('/api/kent-mosques', async (req,res)=>{
 });
 
 app.get('/',(req,res)=>res.send('<h3>Kent Jamaah Scraper</h3><p>Use /api/kent-mosques?date=YYYY-MM-DD</p>'));
+
 
 app.listen(PORT,()=>console.log(`Server running on port ${PORT}`));
