@@ -1,7 +1,7 @@
 {
   "name": "kent-jamah-scraper",
-  "version": "1.0.0",
-  "description": "Scraper API for Kent mosques jamaah and jummah times",
+  "version": "1.1.0",
+  "description": "Kent mosques jamaah and jummah times scraper API",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -11,10 +11,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "puppeteer": "^22.0.0",
-    "fs-extra": "^11.2.0",
-    "pdf-parse": "^1.1.1",
-    "node-fetch": "^3.3.1"
+    "puppeteer": "^24.7.1"
   },
   "author": "Your Name",
   "license": "MIT"
