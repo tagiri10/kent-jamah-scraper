@@ -6,123 +6,116 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
 
-// Mosques
-const MOSQUES = [
+// Mosques config
+const mosques = [
+  {
+    id: 'gillingham',
+    name: 'Gillingham Mosque',
+    url: 'https://kmwa.org.uk/',
+    address: '114 Chatham Rd, Gillingham, Kent'
+  },
   {
     id: 'chatham-hill',
-    name: 'Chatham Hill Mosque & Kent Islamic Centre',
-    url: 'https://www.chathamhillmosque.co.uk/daily-prayer-timings/',
-    address: '7-9 High St, Chatham, ME4 4EE'
+    name: 'Chatham Hill Mosque',
+    url: 'https://www.chathamhillmosque.co.uk/',
+    address: '7-9 High St, Chatham, Kent'
   },
   {
-    id: 'masjidul-abraar',
-    name: 'Masjidul Abraar',
+    id: 'al-abraar',
+    name: 'Masjid Al Abraar',
     url: 'https://www.masjidulabraar.org/',
-    address: '41 Bradfield Rd, Gillingham, ME7 4BL'
-  },
-  {
-    id: 'kmwa',
-    name: 'Kent Muslim Welfare Association',
-    url: 'https://kmwa.org.uk/prayer-time-table-2021/',
-    address: '99-101 Sturry Rd, Canterbury, CT2 7DE'
+    address: '16 High St, Rochester, Kent'
   }
 ];
 
-// Scraper function
+// Utility function to scrape jamah times for a given mosque
 async function scrapeMosque(mosque) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: process.env.CHROME_BIN || puppeteer.executablePath()
+  });
+
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: puppeteer.executablePath()
-    });
     const page = await browser.newPage();
-    await page.goto(mosque.url, { waitUntil: 'networkidle2' });
+    await page.goto(mosque.url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    let result = { jamaah: {}, jummah: [] };
+    let jamaah = {};
+    let jummah = [];
 
-    if (mosque.id === 'chatham-hill') {
-      result = await page.evaluate(() => {
-        const jamaah = {};
-        const jummah = [];
-        document.querySelectorAll('table tr').forEach(tr => {
-          const cells = tr.querySelectorAll('td');
-          if (cells.length >= 3) {
-            const prayer = cells[0].innerText.trim();
-            const jamaahTime = cells[2].innerText.trim();
-            if (prayer.toLowerCase().includes('jummah')) jummah.push(jamaahTime);
-            else jamaah[prayer] = jamaahTime;
-          }
-        });
-        return { jamaah, jummah };
-      });
-    }
-
-    if (mosque.id === 'masjidul-abraar') {
-      result = await page.evaluate(() => {
-        const jamaah = {};
-        const jummah = [];
-        document.querySelectorAll('ul li').forEach(li => {
-          const text = li.innerText;
-          if (text.toLowerCase().includes('jumah') || text.toLowerCase().includes('jummah')) {
-            const times = text.match(/\d{1,2}:\d{2}/g);
-            if (times) times.forEach(t => jummah.push(t));
-          } else {
-            const parts = text.split(':');
-            if (parts.length === 2) jamaah[parts[0].trim()] = parts[1].trim();
-          }
-        });
-        return { jamaah, jummah };
-      });
-    }
-
-    if (mosque.id === 'kmwa') {
-      result = await page.evaluate(() => {
-        const jamaah = {};
-        const jummah = [];
-        document.querySelectorAll('table tr').forEach(tr => {
-          const cells = tr.querySelectorAll('td');
-          if (cells.length >= 2) {
+    // --- Custom scraping rules per mosque ---
+    if (mosque.id === 'gillingham') {
+      // Example: scrape table with fixed selector (update selector if site changes)
+      jamaah = await page.evaluate(() => {
+        const obj = {};
+        document.querySelectorAll('.prayer-table tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if(cells.length === 2) {
             const prayer = cells[0].innerText.trim();
             const time = cells[1].innerText.trim();
-            if (prayer.toLowerCase().includes('jummah')) {
-              const times = time.split(',').map(t => t.trim());
-              times.forEach(t => jummah.push(t));
-            } else {
-              jamaah[prayer] = time;
-            }
+            obj[prayer] = time;
           }
         });
-        return { jamaah, jummah };
+        return obj;
+      });
+      jummah = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('.jummah-time')).map(el => el.innerText.trim());
+      });
+    } else if (mosque.id === 'chatham-hill') {
+      jamaah = await page.evaluate(() => {
+        const obj = {};
+        document.querySelectorAll('.tablepress tbody tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if(cells.length >= 2) {
+            const prayer = cells[0].innerText.trim();
+            const time = cells[1].innerText.trim();
+            obj[prayer] = time;
+          }
+        });
+        return obj;
+      });
+      jummah = await page.evaluate(() => {
+        const jummahEls = document.querySelectorAll('.jummah-times p');
+        return Array.from(jummahEls).map(el => el.innerText.trim());
+      });
+    } else if (mosque.id === 'al-abraar') {
+      jamaah = await page.evaluate(() => {
+        const obj = {};
+        document.querySelectorAll('.prayer-times tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if(cells.length === 2) {
+            const prayer = cells[0].innerText.trim();
+            const time = cells[1].innerText.trim();
+            obj[prayer] = time;
+          }
+        });
+        return obj;
+      });
+      jummah = await page.evaluate(() => {
+        const el = document.querySelector('.jummah p');
+        return el ? [el.innerText.trim()] : [];
       });
     }
 
     await browser.close();
-    return result;
-
+    return { id: mosque.id, name: mosque.name, url: mosque.url, address: mosque.address, jamaah, jummah };
   } catch (err) {
-    console.error('Error scraping', mosque.name, err);
-    return { jamaah: {}, jummah: [] };
+    await browser.close();
+    console.error(`Error scraping ${mosque.name}:`, err);
+    return { id: mosque.id, name: mosque.name, url: mosque.url, address: mosque.address, jamaah: {}, jummah: [] };
   }
 }
 
 // API endpoint
 app.get('/api/kent-mosques', async (req, res) => {
   const date = req.query.date || new Date().toISOString().split('T')[0];
+
   try {
     const results = [];
-    for (const mosque of MOSQUES) {
+    for (const mosque of mosques) {
       const data = await scrapeMosque(mosque);
-      results.push({
-        id: mosque.id,
-        name: mosque.name,
-        url: mosque.url,
-        address: mosque.address,
-        jamaah: data.jamaah,
-        jummah: data.jummah
-      });
+      results.push(data);
     }
     res.json({ date, data: results });
   } catch (err) {
@@ -131,9 +124,6 @@ app.get('/api/kent-mosques', async (req, res) => {
   }
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.send('<h3>Kent Jamaah Scraper</h3><p>Use /api/kent-mosques?date=YYYY-MM-DD</p>');
+app.listen(PORT, () => {
+  console.log(`Kent Jamah Scraper API running on port ${PORT}`);
 });
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
