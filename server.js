@@ -6,87 +6,57 @@ import cron from "node-cron";
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
-let prayerData = {};
-
-// Define mosque info
-const mosques = [
-  {
-    name: "Gillingham Mosque (KMWA)",
-    url: "https://kmwa.org.uk/",
-    address: "114 Canterbury Street, Gillingham, ME7 5UH",
-  },
-  {
-    name: "Chatham Hill Mosque",
-    url: "https://chathamhillmosque.org.uk/",
-    address: "22A Chatham Hill, Chatham ME5 7AA",
-  },
-  {
-    name: "Masjid al Abraar",
-    url: "https://www.masjidalabraar.org/",
-    address: "77 Dale St, Chatham ME4 6QG",
-  },
-];
-
-// Scraper function
+// Scraper for Gillingham Mosque (as a working example)
 async function scrapePrayerTimes() {
+  console.log("Launching browser...");
+
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(), // ✅ key line
+    headless: chromium.headless,
   });
+
   const page = await browser.newPage();
-  const results = {};
+  await page.goto("https://kmwa.org.uk/", { waitUntil: "domcontentloaded" });
 
-  for (const mosque of mosques) {
-    try {
-      await page.goto(mosque.url, { waitUntil: "domcontentloaded", timeout: 60000 });
-      let data;
-
-      // Simple text scraping pattern per mosque (these can be refined if structure changes)
-      if (mosque.url.includes("kmwa.org.uk")) {
-        data = await page.$$eval("table tr", rows =>
-          rows.map(r => r.innerText).filter(t => /Fajr|Dhuhr|Asr|Maghrib|Isha/i.test(t))
-        );
-      } else if (mosque.url.includes("chathamhillmosque.org.uk")) {
-        data = await page.$$eval("table tr", rows =>
-          rows.map(r => r.innerText).filter(t => /Fajr|Dhuhr|Asr|Maghrib|Isha/i.test(t))
-        );
-      } else if (mosque.url.includes("masjidalabraar.org")) {
-        data = await page.$$eval("table tr", rows =>
-          rows.map(r => r.innerText).filter(t => /Fajr|Dhuhr|Asr|Maghrib|Isha/i.test(t))
-        );
-      }
-
-      results[mosque.name] = {
-        name: mosque.name,
-        url: mosque.url,
-        address: mosque.address,
-        prayers: data || [],
-      };
-    } catch (e) {
-      console.error(`Error scraping ${mosque.name}:`, e.message);
-      results[mosque.name] = {
-        name: mosque.name,
-        url: mosque.url,
-        address: mosque.address,
-        prayers: ["Error fetching times"],
-      };
-    }
-  }
+  // Example scraping logic (adjust as needed)
+  const data = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll("table tr"));
+    return rows.map((r) => r.innerText.trim());
+  });
 
   await browser.close();
-  prayerData = results;
-  console.log("✅ Prayer times updated");
+  return data;
 }
 
-// Run once on startup + every midnight
-await scrapePrayerTimes();
-cron.schedule("0 0 * * *", scrapePrayerTimes);
+// Cache data, refresh daily
+let cachedTimes = null;
+cron.schedule("0 0 * * *", async () => {
+  console.log("Refreshing cached prayer times...");
+  cachedTimes = await scrapePrayerTimes();
+});
 
-// API endpoint
-app.get("/api/today", (req, res) => {
-  res.json(prayerData);
+app.get("/api/status", (req, res) => {
+  res.json({ status: "Server running", time: new Date().toISOString() });
+});
+
+app.get("/api/today", async (req, res) => {
+  try {
+    if (!cachedTimes) cachedTimes = await scrapePrayerTimes();
+    res.json({
+      date: new Date().toISOString().split("T")[0],
+      times: cachedTimes,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server running on port ${PORT}`)
+);
