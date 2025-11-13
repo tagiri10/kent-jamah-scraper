@@ -1,7 +1,8 @@
 import express from "express";
-import puppeteer from "puppeteer";
-import cron from "node-cron";
 import cors from "cors";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
+import cron from "node-cron";
 
 const app = express();
 app.use(cors());
